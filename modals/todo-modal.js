@@ -1,9 +1,10 @@
 const mongoose = require('mongoose');
+const status = require('../constants/shared')
 
 const todoSchema = mongoose.Schema({
  
     userId : {
-        type : mongoose.SchemaTypes.ObjectId,
+        type : String,
         required : true
     },
     title : {
@@ -16,14 +17,10 @@ const todoSchema = mongoose.Schema({
     },
     todoStatus : {
         type : String,
-        enum : ["incomplete", "inProgress", "completed"],
-        default : "incomplete"
-    },
-    createdAt : {
-        type : Date,
-        default : () => Date.now(),
-        immutable : true
+        enum : status.todoStatus,
+        default : status.todoStatus.incomplete
     }
-})
+    
+}, {timestamps : true})
 
 module.exports = mongoose.model("todoModel", todoSchema);

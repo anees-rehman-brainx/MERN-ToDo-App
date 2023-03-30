@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const userSchema = mongoose.Schema({
     username : {
         type : String, 
-        required : true,
+        required : [true , "Username is required"],
         minLength : [3, "Name is too short"]
     },
     email : {
@@ -17,11 +17,10 @@ const userSchema = mongoose.Schema({
         required : true, 
         minLength : 8, 
     },
-    createdAt : {
-        type : Date, 
-        default : () => Date.now(), 
-        immutable : true
+
+    token : {
+        type : String
     }
-})
+}, {timestamps : true})
 
 module.exports = mongoose.model("userModal",userSchema);

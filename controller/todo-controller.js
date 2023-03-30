@@ -1,39 +1,41 @@
 
 const todoService = require("../service/todo-service")
 
-
 // Create Todo
 const createTodo = async (req, res) => {
-    try {
-        const {message} = req.body;
-        const userId = req.params.userId;
-        const date = new Date();
+   try {
+        const {title, message} = req.body;
+        const {userId} = req.params;
 
-        const todo ={
-            userId : userId,
-            todoId : Math.floor(Math.random() * 100) + userId,
-            message : message,
-            createdAt : date
+        if(!title || !message){
+            res.status(400).json("All feilds required");
+            return;
         }
 
-        try {
-            const todos = todoService.addTodo(todo);
-            res.status(200).json({message : "Todo added successfully.."});
-            
-        } catch (error) {
-            res.status(500).json(error)
+        const newTodo = await todoService.addTodo({userId, title, message});
+
+        if(!newTodo){
+            res.status(500).json("Internal server error");
+            return;
         }
-        
-    } catch (error) {
-        res.status(404).json(error)
-    }
+
+        res.status(201).json({message : "todo created successfully", payload : newTodo});
+
+   } catch (error) {
+        res.status(400).json(error);
+   }
 }
 
 // get all todos
 const getAllTodos = async (req, res) => {
-
     try {
-        const todos = todoService.getAllTodos();
+        const todos = await todoService.getAllTodos();
+
+        if(!todos){
+            res.status(404).json("Todo does not exist");
+            return;
+        }
+       
         res.status(200).json(todos);
 
     } catch (error) {
@@ -45,7 +47,13 @@ const getAllTodos = async (req, res) => {
 const getTodoByUserId = async (req, res) => {
     try {
         const {userId} = req.params;
-        const todos = todoService.getTodosByUserId(userId);
+        const todos = await todoService.getTodosByUserId(userId);
+
+        if(!todos){
+            res.status(404).json("Todo does not exist");
+            return;
+        }
+
         res.status(200).json(todos);
         
     } catch (error) {
@@ -58,8 +66,14 @@ const getTodoByUserId = async (req, res) => {
 const getTodoByTodoId =async (req, res) => {
     try {
         const {userId, todoId} = req.params;
-        const todos = todoService.getTodobyTodoId(todoId);
-        res.status(200).json(todos);
+        const todo = await todoService.getTodobyTodoId(todoId);
+ 
+        if(!todo){
+            res.status(404).json("Todo does not exist");
+            return;
+        }
+
+        res.status(200).json(todo);
 
     } catch (error) {
         res.status(500).json(error)
@@ -69,17 +83,22 @@ const getTodoByTodoId =async (req, res) => {
 // update todo
 const updateTodo = async (req, res) => {
     try {
-        const {userId, todoId} = req.params;
-        const {message} = req.body;
+        const {todoId} = req.params;
+        const {title, message} = req.body;
 
-        if(todoService.validateTodoId(todoId)){
-            todoService.updateTodo(todoId, message);
-            res.status(200).json("Todo updated Successfully");
-        }
-        else{
-            res.status(404).json("Todo does't exist");
+        if(!title || !message){
+            res.status(400).json("All feilds required");
+            return;
         }
 
+        const updatedTodo = await todoService.updateTodo(todoId,{title: title, message: message});
+
+        if(!updatedTodo){
+            res.status(500).json("Server error");
+        }
+
+        res.status(201).json(updatedTodo);
+        
     } catch (error) {
         res.status(404).json(error);
     }
@@ -88,16 +107,17 @@ const updateTodo = async (req, res) => {
 // delete todo
 const deleteTodo = async ( req, res) => {
     try {
-        const {userId, todoId} = req.params;
+        const {todoId} = req.params;
 
-        if(todoService.validateTodoId(todoId)){
-            todoService.deleteTodoByTodoId(todoId);
-            res.status(200).json("Todo deleted successfully..");
+        const deletedTodo = await todoService.deleteTodoByTodoId(todoId);
+
+        if(!deletedTodo){
+            res.status(500).json("Unexpected error..");
+            return;
         }
 
-        else{
-            res.status(500).json("unable to delete")
-        }
+        res.status(200).json("Deleted successfully..");
+
     } catch (error) {
         res.status(404).json(error)
     }
@@ -105,16 +125,17 @@ const deleteTodo = async ( req, res) => {
 }
 
 // delete todo by user id
-const deleteTodoByUserId = (req, res) => {
+const deleteTodoByUserId = async (req, res) => {
     try {
-        const {userId, todoId} = req.params;
-        
-        try {
-            todoService.deleteTodosByUSerId(userId);
-            res.status(200).json("todo deleted successfully..");
-        } catch (error) {
-            res.status(500).json(error);
+        const {userId} = req.params;        
+        const deletedTodos = await todoService.deleteTodosByUSerId(userId);
+
+        if(!deletedTodos.acknowledged){
+            res.status(500).json("Unexpected error occured");
+            return;
         }
+
+        res.status(200).json("Todos deleted successfully..");
 
     } catch (error) {
         res.status(404).json(error);

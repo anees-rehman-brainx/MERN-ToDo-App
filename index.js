@@ -5,7 +5,7 @@ const {register, login} = require('./controller/user-controller')
 const userRoutes = require("./routes/user-route")
 const todoRoutes = require('./routes/todo-route');
 require('dotenv').config();
-
+const authMiddelware = require("./middelwares/authentication")
 const app = express();
 
 
@@ -15,7 +15,7 @@ const port =  process.env.port || 3001;
 const mongo_url = process.env.MONGO_URI;
 
 app.use('/user', userRoutes);
-app.use('/todo',todoRoutes);
+app.use('/todo', todoRoutes);
 
 mongoose.connect(mongo_url)
 .then(() =>{

@@ -3,192 +3,250 @@ const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 const userService = require('../service/user-service');
-const tokenService = require('../service/token-service')
+const jwtService = require('../service/jwt-service')
 
 
 // function to register user
-const register = async(req, res) => {
+const register = async (req, res) => {
 
-    const {username, email, password, confirmPassword} = req.body;
+    try {
+        const { username, email, password, confirmPassword } = req.body;
 
-    if(username ==  "" || email === "" || password === "" || confirmPassword === ""){
-        res.status(400).json(("All feilds are required"));
-        return;
-    }
-   
-    const isEmailExist =await userService.validateEmail(email);
-
-    if(isEmailExist){
-        res.status(404).json("Email already exists");
-        return;
-    }
-
-    if(password != confirmPassword){
-        res.status(404).json("Password not same");
-        return;
-    }
-
-    //Encrypting the password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-    
-    const user = {
-        username : username,
-        email : email,
-        password : hashedPassword
-    }
-
-    const savedUser =await userService.addUser(user);
-    
-    if(!savedUser){
-        res.status(500).json("Server Error");
-    }
-    else{
-        const payload = {
-            _id : savedUser._id,
-            username : savedUser.username,
-            email : savedUser.email,
-            
+        if (!username || !email || !password || !confirmPassword) {
+            res.status(406).json(("All feilds are required"));
+            return;
         }
-        res.status(201).json({message : "User created Successfully", user : payload});
+
+        const isEmailExist = await userService.getUserByEmail(email);
+
+        if (isEmailExist) {
+            res.status(403).json("Email already exists");
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            res.status(403).json("Password not same");
+            return;
+        }
+
+        //Encrypting the password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+        const savedUser = await userService.addUser({ username, email, password: hashedPassword });
+
+
+        const token = jwtService.generateAccessToken(savedUser._id);
+        const userUpdatedToken = await userService.updateUser(
+            { _id: savedUser._id },
+            {
+                $set: {
+                    token
+                }
+            },
+            { new: true }
+        )
+        res.status(201).json({ message: "User created Successfully", userUpdatedToken });
+
+    } catch (error) {
+        res.status(404).json(error);
     }
+
 }
 
 // function to login user
-const login  = async(req, res) => {
+const login = async (req, res) => {
     try {
-        const {email, password} = req.body;
+        const { email, password } = req.body;
 
-        if(email === "" || password === ""){
-            res.status(400).json("All feilds are required..");
+        if (!email || !password) {
+            res.status(406).json("All feilds are required..");
             return;
         }
 
         const existedUser = await userService.getUserByEmail(email);
 
-        if(!existedUser){
-            res.status(400).json("Email does't exits");
+        if (!existedUser) {
+            res.status(401).json("Email does't exits");
             return;
         }
 
-        const isPasswordMatch = await bcrypt.compare(password, existedUser[0].password);
-
-        if(!isPasswordMatch){
-            res.status(404).json("Wrong Password");
+        const isPasswordMatch = await bcrypt.compare(password, existedUser.password);
+       
+        if (!isPasswordMatch) {
+            res.status(401).json("Wrong Password");
             return;
         }
-        else{
-            const payload = {
-                _id : existedUser[0]._id,
-                username : existedUser[0].username,
-                email : existedUser[0].email
-            }
-          
-            const secretKey = process.env.JWT_SECRET + password;
-            const token = jwt.sign(payload, secretKey, {expiresIn : '30min'});
 
-            try {
-                const userToken = await tokenService.addToken(existedUser[0]._id, token);
-                console.log(userToken)
-                const user = await tokenService.getUserByToken(userToken);
-                console.log(user)
-                if(userToken){
-                    res.status(201).json({message : "Login Successfull", token : userToken.token})
-                }
+        res.setHeader("access-control-expose-headers", "access-token")
+            .header("access-token", existedUser.token)
+            .status(200)
+            .json({ user: existedUser })
 
-            } catch (error) {
-                res.json(error);
-            }
-        }
+
     } catch (error) {
-        res.status(500).json(error);  
-    }    
+        res.status(500).json(error);
+    }
 }
 
 
 // Function to change password
-const changePassword = async(req, res) => {
-    const {email, oldPassword, newPassword, confirmNewPassword} = req.body;
+const changePassword = async (req, res) => {
+    try {
+        const {oldPassword, newPassword, confirmNewPassword } = req.body;
+        const {userId} = req.params;
+
+        if (!oldPassword || !newPassword || !confirmNewPassword) {
+            res.status(406).json("All feilds are required...");
+            return;
+        }
+
+        if (newPassword != confirmNewPassword) {
+            res.status(404).json("New Password does't match");
+            return;
+        }
+
+        const existedUser = await userService.getUserById(userId);
+
+        if (existedUser) {
+            res.status(404).json("Email does't exist..");
+            return;
+        }
+
+        //comparing old password provided by user and password in database against userId
+        const isPasswordMatch = await bcrypt.compare(oldPassword, existedUser.password);
+
+        if (!isPasswordMatch) {
+            res.status(404).json("Incorrect old password..");
+            return;
+        }
+
+        //comparing new password and old password in DB
+        const isPasswordSame = await bcrypt.compare(newPassword, existedUser.password);
+
+        if (isPasswordSame) {
+            res.status(404).json("Old password and new password must be different");
+            return;
+        }
+
+        //generating hash for new password 
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        const updatedUser = await userService.updateUser(
+            {_id : existedUser._id},
+            {$set : 
+                {password : hashedPassword}
+            }, 
+            {new : true})
+
+        if(updatedUser){
+            res.status(200).json("Password updated successfully....");
+        }
+
+    } catch (error) {
+        res.status(404).json(error);    
+    }
     
-    if(email === "" || oldPassword === "" || newPassword === "" || confirmNewPassword === ""){
-        res.status(404).json("All feilds are required...");
-        return;
-    }
-
-    const isUserExist = userService.getUserByEmail(email);
-
-    if(!isUserExist){
-        res.status(404).json("Email does't exist..");
-        return;
-    }
-
-    if(isUserExist.password != oldPassword){
-        res.status(404).json("Incorrect old password..");
-        return;
-    }
-
-    if(newPassword != confirmNewPassword){
-        res.status(404).json("New Password does't match");
-        return;
-    }
-
-    if(newPassword == oldPassword){
-        res.status(404).json("Old password and new password must be different");
-        return;
-    }
-
-    userService.updatePassword(isUserExist.userId, newPassword);
-    res.status(200).json("Password updated successfully....");
-    res.status(200).json(isUserExist);
 }
 
 // Function to send link forgott password
-const forgotPassword = async(req, res) => {
-    const {email} = req.body;
+const forgotPassword = async (req, res) => {
+    const { email } = req.body;
 
-    const user = userService.getUserByEmail(email);
+    const user = await userService.getUserByEmail(email);
 
-    if(!user){
+    if (!user) {
         res.status(404).json("Email does't exist");
         return;
     }
 
     // creating a unique token for password reset link
-    const secretKey = process.env.JWT_SECRET + user.password;
-    const payload = {email : user.email, id : user.id};
-    const token = jwt.sign(payload, secretKey, {expiresIn : '15m'});
+    const token = jwtService.generateAccessToken(user);
 
     // Password resett link that is to be mailed to user 
-    const link = `http://localhost:${process.env.port}/user/reset-password/${user.userId}/${token}`;
-
+    const link = `${process.env.HOST}:${process.env.port}/user/reset-password/${user._id}/${token}`;
+    
     // response sent to user > in future it is implemented via nodemailer
-    res.status(200).json(link);
+    const nodemail = nodemailer.createTransport({
+        service : 'gmail',
+        auth : {
+            user : 'aneesrehmanur@gmail.com',
+            pass : process.env.PASSWORD
+        }
+    });
 
+    let mailDetails = {
+        from : process.env.USERNAME,
+        to : user.email,
+        subject : "Password Resett Link",
+        text : `<a href = ${link}>click to Reset Password </a>`
+    }
+
+    nodemail.sendMail(mailDetails, function(err, data){
+        if(err){
+            res.status(500).json(err);
+        } else{
+           res.status(200).json("Password Resett link has been sent to your email")
+        }
+
+    })
 }
 
 
 // Function to resett password
-const resetPassword = async(req, res) => {
+const resetPassword = async (req, res) => {
     try {
-        const {userId, token} = req.params;
+        const { userId, token } = req.params;
+        const {newPassword, confirmNewPassword} = req.body;
 
-        const isUserExist = users.find(user => user.userId === userId);
-
-        if (!isUserExist ){
-            res.status(400).json({error : "User Id does't exist"});
-            return;
+        const existedUser = await userService.getUserById(userId);
+        let idFromToken = null ;
+        
+        jwtService.verifyToken(
+            token,
+            process.env.JWT_TOKEN_KEY,
+            async (err, user) => {
+                if (err) {
+                    console.log(user)
+                    return res.status(401).json({ error: "Token is not valid!" });
+                }
+                if(user){
+                    idFromToken = user._id;
+                }
+            } );
+        
+        if(!idFromToken || idFromToken !== existedUser._id){
+            return res.status(401).json({ error: "Token is not valid!" });
         }
 
-        const payload = jwt.verify(token, process.env.JWT_SECRET);
+        //if token and userId verified
+        if(newPassword !== confirmNewPassword){
+            return res.status(406).json("Password does't match");
+        }
 
-        // If Jwt token verifies render the page containing new password and confirm new password feilds.
+        //generating password hash and updating in database
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+        const updatedUser = await userService.updateUser({_id : existedUser._id}, {$set : {password : hashedPassword}}, {new : true});
 
-    
-    } catch (error) {
+        if(!updatedUser){
+            return res.status(500).json("Unexpected error occured");
+        }
+
+        return res.status(201).json("Password updated successfully..");
+
+    }
+    catch (error) {
         res.json(error);
     }
-    
-    
+
+
 }
 
-module.exports = {register, login, changePassword, forgotPassword, resetPassword};
+module.exports = { 
+    register, 
+    login, 
+    changePassword, 
+    forgotPassword, 
+    resetPassword 
+};

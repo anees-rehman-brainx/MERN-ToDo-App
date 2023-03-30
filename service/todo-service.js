@@ -1,52 +1,52 @@
-var todos = [];
+const todoModal = require("../modals/todo-modal") 
 
 // validate todo id
-const validateTodoId = (todoId) => {
-    const todo = todos.find(todo => todo.todoId === todoId);
+const validateTodoId = async (todoId) => {
+    const todo = await todoModal.findOne({_id : todoId});
     return todo ? true : false;
 }
 
-// add todo
-const addTodo = (todo) => {
-    todos.push(todo);
-    return todos;
+// add todo tp database
+const addTodo = async (todo) => {
+   const savedTodo = await new todoModal(todo);
+   return savedTodo.save();
 }
 
 // get all todo
-const getAllTodos = () => {
+const getAllTodos = async () => {
+    const todos = await todoModal.find();
     return todos;
 }
 
 // getTodosByUserId
-const getTodosByUserId = (userId) => {
-    const userTodos = todos.filter(todo => todo.userId === userId);
-    return userTodos;
+const getTodosByUserId = async (userId) => {
+    const todo = await todoModal.findOne({userId : userId});
+    return todo;
 }
 
 // get todo by todo id
-const getTodobyTodoId = (todoId) => {
-    const todo = todos.find(todo => todo.todoId === todoId);
-    return todo ? todo : false;
+const getTodobyTodoId = async (todoId) => {
+   const todo = await todoModal.findById(todoId);
+   return todo;
 }
 
 // update todo
-const updateTodo = (todoId, message) => {
-    const index = todos.findIndex(todo => todo.todoId === todoId);
-    if(index != -1){
-        todos[index].message = message;
-    }
+const updateTodo = async (todoId, todo) => {
+    const updateTodo = await todoModal.findByIdAndUpdate({_id : todoId}, todo);
+    console.log(updateTodo)
+    return updateTodo;
 }
 
 // delete todo by todo id
-const deleteTodoByTodoId = (todoId) => {
-    const newTodos = todos.filter(todo => todo.todoId != todoId);
-    todos = newTodos;
+const deleteTodoByTodoId = async (todoId) => {
+    const isDeleted = await todoModal.findByIdAndDelete(todoId);
+    return isDeleted;
 }
 
-// delete all todos by user id
-const deleteTodosByUSerId = (userId) => {
-    const newTodos = todos.filter(todo => todo.userId != userId);
-    todos = newTodos;
+
+const deleteTodosByUSerId = async (userId) => {
+    const isDeleted  = await todoModal.deleteMany({userId : userId});
+    return isDeleted;
 }
 
 

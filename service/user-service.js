@@ -1,73 +1,46 @@
 const userModal = require('../modals/user-modal');
 
-
-// check if email exists
-const validateEmail = async (email) => {
-    const user = await userModal.find({"email" : email});
-    return user.length == 0 ? false : true;
-}
-
-
-// check if userId exists
-const validateUserId =async (userId) => {
-    const existedUser = await userModal.find({_id : userId});
-    return existedUser ? true : false;
-}
-
-
 // add user to the list
-const addUser = async ({username, email, password}) => {
-    const user = new userModal({username, email, password});
-    return user.save();
+const addUser = async (user) => {
+    const savedUser = await new userModal(user);
+    return savedUser.save();
 }
-
 
 // get all users
-const getAllUsers =async () => {
+const getAllUsers = async () => {
     const users = await userModal.find();
     return users;
 }
 
-
 // get user by ID
-const getUserById = (id) => {
-    const existedUser = users.find(user => user.userId === id);
-    return existedUser ? existedUser : false;
+const getUserById = async (id) => {
+    const user = await userModal.findById(id);
+    return user; 
 }
-
 
 // get user by email
 const getUserByEmail = async (email) => {
-    return userModal.find({email : email});
+    const user = await userModal.findOne({email});
+    return user;
 }
-
 
 // change username
-const updateUsername = (userId, username) => {
-    const index = users.findIndex(user => user.userId === userId);
-
-    if(index != -1){
-        users[index].username = username;
-    }
+const updateUser = async (cond, update, options) => {
+   const updatedUser = await userModal.findByIdAndUpdate(cond, update, options);
+   return updatedUser;
 }
-
 
 // change password
-const updatePassword = (userId, newPassword) => {
-    const index = users.findIndex(user => user.userId === userId );
-    if(index != -1){
-        users[index].password = newPassword;
-    }
+const updatePassword = async (userId, newPassword) => {
+ const updatedUser = await userModal.findByIdAndUpdate(userId, user);
+ return updatedUser;
 }
 
-
 module.exports = {
-    validateEmail,
-    validateUserId,
     addUser,
     getAllUsers,
     getUserById,
     getUserByEmail,
-    updateUsername,
+    updateUser,
     updatePassword
 }
