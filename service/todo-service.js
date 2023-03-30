@@ -20,7 +20,7 @@ const getAllTodos = async () => {
 
 // getTodosByUserId
 const getTodosByUserId = async (userId) => {
-    const todo = await todoModal.findOne({userId : userId});
+    const todo = await todoModal.find({userId : userId});
     return todo;
 }
 

@@ -8,7 +8,7 @@ const createTodo = async (req, res) => {
         const {userId} = req.params;
 
         if(!title || !message){
-            res.status(400).json("All feilds required");
+            res.status(406).json("All feilds required");
             return;
         }
 
@@ -22,7 +22,7 @@ const createTodo = async (req, res) => {
         res.status(201).json({message : "todo created successfully", payload : newTodo});
 
    } catch (error) {
-        res.status(400).json(error);
+        res.status(500).json(error);
    }
 }
 
@@ -31,7 +31,7 @@ const getAllTodos = async (req, res) => {
     try {
         const todos = await todoService.getAllTodos();
 
-        if(!todos){
+        if(todos.length === 0){
             res.status(404).json("Todo does not exist");
             return;
         }
@@ -49,7 +49,7 @@ const getTodoByUserId = async (req, res) => {
         const {userId} = req.params;
         const todos = await todoService.getTodosByUserId(userId);
 
-        if(!todos){
+        if(todos.length === 0){
             res.status(404).json("Todo does not exist");
             return;
         }
@@ -87,7 +87,7 @@ const updateTodo = async (req, res) => {
         const {title, message} = req.body;
 
         if(!title || !message){
-            res.status(400).json("All feilds required");
+            res.status(406).json("All feilds required");
             return;
         }
 

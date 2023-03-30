@@ -26,13 +26,6 @@ const verifyAuth = async (request, response, next) => {
                 const dbUser = await userService.getUserById(user._id);
                 console.log("User :", dbUser);
 
-                // console.log("db user expired token array :", dbUser.expiredTokens);
-                // if (dbUser?.expiredTokens?.includes(token)) {
-                //     return response
-                //         .status(401)
-                //         .json({ error: "Token has been expired" });
-                // }
-
                 if (!dbUser)
                     return response
                         .status(404)
@@ -43,18 +36,6 @@ const verifyAuth = async (request, response, next) => {
                         .status(401)
                         .json({ error: "Session token not found" });
                 }
-
-                if (dbUser.token !== authHeader) {
-                    return response
-                        .status(401)
-                        .json({ error: "Token does not match with databse token" });
-                }
-
-                // if (dbUser.isDeleted) {
-                //     return response
-                //         .status(401)
-                //         .json({ error: "This account has been de-activated" });
-                // }
 
                 const decoded = jwtService.decodeToken(authHeader);
                 if (!decoded) {

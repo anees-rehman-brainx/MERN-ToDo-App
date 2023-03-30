@@ -25,7 +25,7 @@ const register = async (req, res) => {
         }
 
         if (password !== confirmPassword) {
-            res.status(403).json("Password not same");
+            res.status(400).json("Password not same");
             return;
         }
 
@@ -33,7 +33,6 @@ const register = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
         const savedUser = await userService.addUser({ username, email, password: hashedPassword });
-
 
         const token = jwtService.generateAccessToken(savedUser._id);
         const userUpdatedToken = await userService.updateUser(
@@ -78,7 +77,7 @@ const login = async (req, res) => {
         }
 
         res.setHeader("access-control-expose-headers", "access-token")
-            .header("access-token", existedUser.token)
+            .header("access-token", jwtService.generateAccessToken(existedUser))
             .status(200)
             .json({ user: existedUser })
 
@@ -100,17 +99,12 @@ const changePassword = async (req, res) => {
             return;
         }
 
-        if (newPassword != confirmNewPassword) {
+        if (newPassword !== confirmNewPassword) {
             res.status(404).json("New Password does't match");
             return;
         }
 
         const existedUser = await userService.getUserById(userId);
-
-        if (existedUser) {
-            res.status(404).json("Email does't exist..");
-            return;
-        }
 
         //comparing old password provided by user and password in database against userId
         const isPasswordMatch = await bcrypt.compare(oldPassword, existedUser.password);
@@ -164,7 +158,7 @@ const forgotPassword = async (req, res) => {
     const token = jwtService.generateAccessToken(user);
 
     // Password resett link that is to be mailed to user 
-    const link = `${process.env.HOST}:${process.env.port}/user/reset-password/${user._id}/${token}`;
+    const link = `${process.env.HOST}/user/reset-password/${user._id}/${token}`;
     
     // response sent to user > in future it is implemented via nodemailer
     const nodemail = nodemailer.createTransport({
@@ -179,7 +173,8 @@ const forgotPassword = async (req, res) => {
         from : process.env.USERNAME,
         to : user.email,
         subject : "Password Resett Link",
-        text : `<a href = ${link}>click to Reset Password </a>`
+        text : "Click on below link to reset password",
+        html : `<a href = ${link}>Reset Password </a>`
     }
 
     nodemail.sendMail(mailDetails, function(err, data){
@@ -237,10 +232,8 @@ const resetPassword = async (req, res) => {
 
     }
     catch (error) {
-        res.json(error);
+        res.status(500).json(error);
     }
-
-
 }
 
 module.exports = { 

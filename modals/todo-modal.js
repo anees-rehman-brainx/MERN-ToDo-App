@@ -4,7 +4,7 @@ const status = require('../constants/shared')
 const todoSchema = mongoose.Schema({
  
     userId : {
-        type : String,
+        type : mongoose.Schema.Types.ObjectId,
         required : true
     },
     title : {

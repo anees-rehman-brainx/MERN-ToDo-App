@@ -24,16 +24,10 @@ const getUserByEmail = async (email) => {
     return user;
 }
 
-// change username
+// change user feild
 const updateUser = async (cond, update, options) => {
    const updatedUser = await userModal.findByIdAndUpdate(cond, update, options);
    return updatedUser;
-}
-
-// change password
-const updatePassword = async (userId, newPassword) => {
- const updatedUser = await userModal.findByIdAndUpdate(userId, user);
- return updatedUser;
 }
 
 module.exports = {
