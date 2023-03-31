@@ -5,15 +5,16 @@ const todoSchema = mongoose.Schema({
  
     userId : {
         type : mongoose.Schema.Types.ObjectId,
-        required : true
+        ref: "user-modals",
+        required : [true,"User id is required"]
     },
     title : {
         type : String,
-        required : true
+        required :  [true,"Todo title is required"]
     },
     message : {
         type : String,
-        required : true
+        required :  [true,"Todo message is required"]
     },
     todoStatus : {
         type : String,

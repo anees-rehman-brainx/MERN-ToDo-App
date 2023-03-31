@@ -1,11 +1,5 @@
 const todoModal = require("../modals/todo-modal") 
 
-// validate todo id
-const validateTodoId = async (todoId) => {
-    const todo = await todoModal.findOne({_id : todoId});
-    return todo ? true : false;
-}
-
 // add todo tp database
 const addTodo = async (todo) => {
    const savedTodo = await new todoModal(todo);
@@ -19,9 +13,9 @@ const getAllTodos = async () => {
 }
 
 // getTodosByUserId
-const getTodosByUserId = async (userId) => {
-    const todo = await todoModal.find({userId : userId});
-    return todo;
+const getTodosByUserId = async (cond) => {
+    const todos = await todoModal.find(cond);
+    return todos;
 }
 
 // get todo by todo id
@@ -31,9 +25,8 @@ const getTodobyTodoId = async (todoId) => {
 }
 
 // update todo
-const updateTodo = async (todoId, todo) => {
-    const updateTodo = await todoModal.findByIdAndUpdate({_id : todoId}, todo);
-    console.log(updateTodo)
+const updateTodo = async (cond, todo, options) => {
+    const updateTodo = await todoModal.findByIdAndUpdate(cond, todo, options);
     return updateTodo;
 }
 
@@ -45,13 +38,12 @@ const deleteTodoByTodoId = async (todoId) => {
 
 
 const deleteTodosByUSerId = async (userId) => {
-    const isDeleted  = await todoModal.deleteMany({userId : userId});
+    const isDeleted  = await todoModal.deleteMany(userId);
     return isDeleted;
 }
 
 
 module.exports = {
-    validateTodoId,
     addTodo,
     getAllTodos,
     getTodobyTodoId,

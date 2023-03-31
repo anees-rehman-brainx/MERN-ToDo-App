@@ -8,8 +8,8 @@ const userSchema = mongoose.Schema({
     },
     email : {
         type : String, 
-        required : true, 
-        minLength : 10, 
+        required : [true, "Email is required"], 
+        minLength : [10, "email should be minimum 10 characters"], 
         lowercase : true
     },
     password : {
@@ -19,7 +19,8 @@ const userSchema = mongoose.Schema({
     },
 
     token : {
-        type : String
+        type : String,
+        default : null
     }
 }, {timestamps : true})
 

@@ -3,7 +3,8 @@ const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 const userService = require('../service/user-service');
-const jwtService = require('../service/jwt-service')
+const jwtService = require('../service/jwt-service');
+const { default: mongoose } = require('mongoose');
 
 
 // function to register user
@@ -30,24 +31,13 @@ const register = async (req, res) => {
         }
 
         //Encrypting the password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
+        const hashedPassword = await generateHash(password);
+        //adding user in DB
         const savedUser = await userService.addUser({ username, email, password: hashedPassword });
-
-        const token = jwtService.generateAccessToken(savedUser._id);
-        const userUpdatedToken = await userService.updateUser(
-            { _id: savedUser._id },
-            {
-                $set: {
-                    token
-                }
-            },
-            { new: true }
-        )
-        res.status(201).json({ message: "User created Successfully", userUpdatedToken });
+        res.status(201).json({ message: "User created Successfully", savedUser });
 
     } catch (error) {
-        res.status(404).json(error);
+        res.status(500).json(error);
     }
 
 }
@@ -75,11 +65,22 @@ const login = async (req, res) => {
             res.status(401).json("Wrong Password");
             return;
         }
-
+        
+        const token = jwtService.generateAccessToken(existedUser._id);
+        const userUpdatedToken = await userService.updateUser(
+            { _id: existedUser._id },
+            {
+                $set: {
+                    token
+                }
+            },
+            { new: true }
+        )
+    
         res.setHeader("access-control-expose-headers", "access-token")
-            .header("access-token", jwtService.generateAccessToken(existedUser))
+            .header("access-token", token)
             .status(200)
-            .json({ user: existedUser })
+            .json({ user:userUpdatedToken })
 
 
     } catch (error) {
@@ -92,7 +93,8 @@ const login = async (req, res) => {
 const changePassword = async (req, res) => {
     try {
         const {oldPassword, newPassword, confirmNewPassword } = req.body;
-        const {userId} = req.params;
+        const user = req.user;
+        console.log(user)
 
         if (!oldPassword || !newPassword || !confirmNewPassword) {
             res.status(406).json("All feilds are required...");
@@ -104,7 +106,7 @@ const changePassword = async (req, res) => {
             return;
         }
 
-        const existedUser = await userService.getUserById(userId);
+        const existedUser = await userService.getUserById(user._id);
 
         //comparing old password provided by user and password in database against userId
         const isPasswordMatch = await bcrypt.compare(oldPassword, existedUser.password);
@@ -123,8 +125,7 @@ const changePassword = async (req, res) => {
         }
 
         //generating hash for new password 
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(newPassword, salt);
+        const hashedPassword = await generateHash(newPassword);
 
         const updatedUser = await userService.updateUser(
             {_id : existedUser._id},
@@ -138,63 +139,67 @@ const changePassword = async (req, res) => {
         }
 
     } catch (error) {
-        res.status(404).json(error);    
+        res.status(500).json(error);    
     }
     
 }
 
 // Function to send link forgott password
 const forgotPassword = async (req, res) => {
-    const { email } = req.body;
-
-    const user = await userService.getUserByEmail(email);
-
-    if (!user) {
-        res.status(404).json("Email does't exist");
-        return;
-    }
-
-    // creating a unique token for password reset link
-    const token = jwtService.generateAccessToken(user);
-
-    // Password resett link that is to be mailed to user 
-    const link = `${process.env.HOST}/user/reset-password/${user._id}/${token}`;
-    
-    // response sent to user > in future it is implemented via nodemailer
-    const nodemail = nodemailer.createTransport({
-        service : 'gmail',
-        auth : {
-            user : 'aneesrehmanur@gmail.com',
-            pass : process.env.PASSWORD
-        }
-    });
-
-    let mailDetails = {
-        from : process.env.USERNAME,
-        to : user.email,
-        subject : "Password Resett Link",
-        text : "Click on below link to reset password",
-        html : `<a href = ${link}>Reset Password </a>`
-    }
-
-    nodemail.sendMail(mailDetails, function(err, data){
-        if(err){
-            res.status(500).json(err);
-        } else{
-           res.status(200).json("Password Resett link has been sent to your email")
+    try {
+        const {email} = req.body;
+        const existedUser = await userService.getUserByEmail(email);
+        console.log(existedUser)
+        if (!existedUser) {
+            res.status(404).json("Email does't exist");
+            return;
         }
 
-    })
+        // creating a unique token for password reset link
+        const token = jwtService.generateAccessToken(existedUser._id);
+
+        // Password resett link that is to be mailed to user 
+        const link = `${process.env.HOST}/user/reset-password/${existedUser._id}/${token}`;
+        console.log(link)
+        // response sent to user > in future it is implemented via nodemailer
+        const nodemail = nodemailer.createTransport({
+            service : 'gmail',
+            auth : {
+                user : process.env.USER,
+                pass : process.env.PASSWORD
+            }
+        });
+
+        let mailDetails = {
+            from : process.env.USER,
+            to : user.email,
+            subject : "Password Resett Link",
+            text : "Click on below link to reset password",
+            html : `<a href = ${link}>Reset Password </a>`
+        }
+
+        nodemail.sendMail(mailDetails, function(err, data){
+            if(err){
+                res.status(500).json(err);
+            } else{
+                res.status(200).json("Password Resett link has been sent to your email")
+            }
+
+        })
+        res.json(link)
+    } catch (error) {
+        res.status(500).json(err);
+    }
+
 }
-
 
 // Function to resett password
 const resetPassword = async (req, res) => {
     try {
-        const { userId, token } = req.params;
+        const { id, token } = req.params;
         const {newPassword, confirmNewPassword} = req.body;
 
-        const existedUser = await userService.getUserById(userId);
+        const existedUser = await userService.getUserById(id);
         let idFromToken = null ;
         
         jwtService.verifyToken(
@@ -206,11 +211,11 @@ const resetPassword = async (req, res) => {
                     return res.status(401).json({ error: "Token is not valid!" });
                 }
                 if(user){
-                    idFromToken = user._id;
+                    idFromToken = new mongoose.Types.ObjectId(user._id) ;
                 }
             } );
-        
-        if(!idFromToken || idFromToken !== existedUser._id){
+
+        if(!idFromToken || !idFromToken.equals(existedUser._id)){
             return res.status(401).json({ error: "Token is not valid!" });
         }
 
@@ -220,8 +225,7 @@ const resetPassword = async (req, res) => {
         }
 
         //generating password hash and updating in database
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(newPassword, salt);
+        const hashedPassword = await generateHash(newPassword);
         const updatedUser = await userService.updateUser({_id : existedUser._id}, {$set : {password : hashedPassword}}, {new : true});
 
         if(!updatedUser){
@@ -234,6 +238,13 @@ const resetPassword = async (req, res) => {
     catch (error) {
         res.status(500).json(error);
     }
+}
+
+//helper function
+const generateHash =async (password) => {
+    const salt = await bcrypt.genSalt(Number(process.env.GEN_SALT));
+    const hashedPassword = await bcrypt.hash(password, salt);
+    return hashedPassword;
 }
 
 module.exports = { 

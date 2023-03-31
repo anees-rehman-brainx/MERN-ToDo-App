@@ -5,18 +5,15 @@ const userService = require('../service/user-service')
 const verifyAuth = async (request, response, next) => {
     console.log("In verify auth");
     const authHeader = request.headers.access_token;
-    console.log(authHeader)
+ 
     if (authHeader) {
-        const token = authHeader.split(".")[1];
-
-        console.log("token :", token);
+        const token = authHeader.split(" ")[1];
 
         jwtService.verifyToken(
-            authHeader,
+            token,
             process.env.JWT_TOKEN_KEY,
             async (err, user) => {
-                console.log("Error :", err);
-                console.log("user: ", user);
+
                 if (err) {
                     return response
                         .status(401)
@@ -24,8 +21,7 @@ const verifyAuth = async (request, response, next) => {
                 }
 
                 const dbUser = await userService.getUserById(user._id);
-                console.log("User :", dbUser);
-
+                
                 if (!dbUser)
                     return response
                         .status(404)
@@ -37,14 +33,14 @@ const verifyAuth = async (request, response, next) => {
                         .json({ error: "Session token not found" });
                 }
 
-                const decoded = jwtService.decodeToken(authHeader);
+                const decoded = jwtService.decodeToken(token);
                 if (!decoded) {
                     return response
                         .status(401)
                         .json({ error: "Invalid token" });
                 }
 
-                request.params.userId = dbUser._id;
+                request.user = dbUser;
                 next();
             }
         );
