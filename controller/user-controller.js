@@ -12,9 +12,15 @@ const register = async (req, res) => {
 
     try {
         const { username, email, password, confirmPassword } = req.body;
+        const regex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/;
 
         if (!username || !email || !password || !confirmPassword) {
             res.status(406).json(("All feilds are required"));
+            return;
+        }
+        
+        if(!email.match(regex)){
+            res.status(400).json("Invalid Email");
             return;
         }
 
@@ -22,6 +28,11 @@ const register = async (req, res) => {
 
         if (isEmailExist) {
             res.status(403).json("Email already exists");
+            return;
+        }
+
+        if(password.length < 8){
+            res.status(400).json("Password should be minimum 8 characters");
             return;
         }
 
@@ -94,8 +105,7 @@ const changePassword = async (req, res) => {
     try {
         const {oldPassword, newPassword, confirmNewPassword } = req.body;
         const user = req.user;
-        console.log(user)
-
+        
         if (!oldPassword || !newPassword || !confirmNewPassword) {
             res.status(406).json("All feilds are required...");
             return;
@@ -110,12 +120,12 @@ const changePassword = async (req, res) => {
 
         //comparing old password provided by user and password in database against userId
         const isPasswordMatch = await bcrypt.compare(oldPassword, existedUser.password);
-
+        
         if (!isPasswordMatch) {
             res.status(404).json("Incorrect old password..");
             return;
         }
-
+     
         //comparing new password and old password in DB
         const isPasswordSame = await bcrypt.compare(newPassword, existedUser.password);
 
@@ -149,7 +159,7 @@ const forgotPassword = async (req, res) => {
     try {
         const {email} = req.body;
         const existedUser = await userService.getUserByEmail(email);
-        console.log(existedUser)
+
         if (!existedUser) {
             res.status(404).json("Email does't exist");
             return;
@@ -159,8 +169,8 @@ const forgotPassword = async (req, res) => {
         const token = jwtService.generateAccessToken(existedUser._id);
 
         // Password resett link that is to be mailed to user 
-        const link = `${process.env.HOST}/user/reset-password/${existedUser._id}/${token}`;
-        console.log(link)
+        const link = `${process.env.HOST}/user/reset_password/${existedUser._id}/${token}`;
+
         // response sent to user > in future it is implemented via nodemailer
         const nodemail = nodemailer.createTransport({
             service : 'gmail',
@@ -172,23 +182,19 @@ const forgotPassword = async (req, res) => {
 
         let mailDetails = {
             from : process.env.USER,
-            to : user.email,
+            to : existedUser.email,
             subject : "Password Resett Link",
             text : "Click on below link to reset password",
             html : `<a href = ${link}>Reset Password </a>`
         }
 
-        nodemail.sendMail(mailDetails, function(err, data){
-            if(err){
-                res.status(500).json(err);
-            } else{
-                res.status(200).json("Password Resett link has been sent to your email")
-            }
-
-        })
-        res.json(link)
+        // Below line has to be fixed and uncommented
+        //await nodemail.sendMail(mailDetails)
+        
+        res.json({link})
     } catch (error) {
-        res.status(500).json(err);
+        console.log(error)
+        res.status(500).json(error);
     }
 
 }

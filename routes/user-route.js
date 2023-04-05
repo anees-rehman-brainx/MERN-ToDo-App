@@ -6,7 +6,7 @@ const router = express.Router();
 router.post("/register", userController.register);
 router.post("/login", userController.login);
 router.put("/change_password", authMiddelware.verifyAuth, userController.changePassword);
-router.get("/forgot_password", userController.forgotPassword);
+router.post("/forgot_password", userController.forgotPassword);
 router.put("/reset_password/:id/:token", userController.resetPassword)
 
 

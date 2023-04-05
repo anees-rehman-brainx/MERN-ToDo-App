@@ -16,7 +16,8 @@ const createTodo = async (req, res) => {
         const newTodo = await todoService.addTodo(
             {
                 userId : user._id, 
-                title, message
+                title, 
+                message
             });
 
         if(!newTodo){
@@ -80,7 +81,7 @@ const getTodoByTodoId =async (req, res) => {
     try {
         const {todoId} = req.params;
         const id = new mongoose.Types.ObjectId(todoId)
-        const todo = await todoService.getTodobyTodoId(id);
+        const todo = await todoService.getTodobyTodoId({_id : id});
  
         if(!todo){
             res.status(404).json("Todo does not exist");
@@ -98,9 +99,9 @@ const getTodoByTodoId =async (req, res) => {
 const updateTodo = async (req, res) => {
     try {
         const {todoId} = req.params;
-        const {title, message} = req.body;
+        const todo = req.body;
 
-        if(!title || !message){
+        if(!todo){
             res.status(406).json("All feilds required");
             return;
         }
@@ -110,10 +111,7 @@ const updateTodo = async (req, res) => {
             {
                 _id : new mongoose.Types.ObjectId(todoId)
             },
-            {
-                title: title, 
-                message: message
-            },
+            { $set : todo },
             {
                 new : true
             }
@@ -150,7 +148,7 @@ const deleteTodo = async ( req, res) => {
 const deleteTodoByUserId = async (req, res) => {
     try {
         const user = req.user;        
-        const deletedTodos = await todoService.deleteTodosByUSerId(user._id);
+        const deletedTodos = await todoService.deleteTodosByUSerId({userId:user._id});
 
         if(!deletedTodos.acknowledged){
             res.status(500).json("Unexpected error occured");
