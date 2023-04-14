@@ -5,6 +5,7 @@ const userService = require('../service/user-service')
 const verifyAuth = async (request, response, next) => {
     console.log("In verify auth");
     const authHeader = request.headers.access_token;
+    console.log(authHeader)
  
     if (authHeader) {
         const token = authHeader.split(" ")[1];

@@ -9,7 +9,7 @@ const createTodo = async (req, res) => {
         const user = req.user;
         
         if(!title || !message){
-            res.status(406).json("All feilds required");
+            res.status(406).json({message : "All feilds required"});
             return;
         }
 
@@ -21,7 +21,7 @@ const createTodo = async (req, res) => {
             });
 
         if(!newTodo){
-            res.status(500).json("Internal server error");
+            res.status(500).json({message : "Internal server error"});
             return;
         }
 
@@ -32,7 +32,7 @@ const createTodo = async (req, res) => {
             });
 
    } catch (error) {
-        res.status(500).json(error);
+        res.status(500).json({message : error});
    }
 }
 
@@ -102,7 +102,7 @@ const updateTodo = async (req, res) => {
         const todo = req.body;
 
         if(!todo){
-            res.status(406).json("All feilds required");
+            res.status(406).json({message : "All feilds required"});
             return;
         }
 
@@ -117,10 +117,10 @@ const updateTodo = async (req, res) => {
             }
             );
 
-        res.status(201).json(updatedTodo);
+        res.status(201).json({message : "Todo updated sucessfully", updateTodo});
         
     } catch (error) {
-        res.status(500).json(error);
+        res.status(500).json({message : error});
     }
 }
 

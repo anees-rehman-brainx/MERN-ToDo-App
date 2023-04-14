@@ -27,7 +27,7 @@ const register = async (req, res) => {
         const isEmailExist = await userService.getUserByEmail(email);
 
         if (isEmailExist) {
-            res.status(403).json("Email already exists");
+            res.status(403).json({message : "Email already exists"});
             return;
         }
 
@@ -59,21 +59,21 @@ const login = async (req, res) => {
         const { email, password } = req.body;
 
         if (!email || !password) {
-            res.status(406).json("All feilds are required..");
+            res.status(406).json({message : "All feilds are required.."});
             return;
         }
 
         const existedUser = await userService.getUserByEmail(email);
 
         if (!existedUser) {
-            res.status(401).json("Email does't exits");
+            res.status(401).json({message : "Email does't exits"});
             return;
         }
 
         const isPasswordMatch = await bcrypt.compare(password, existedUser.password);
        
         if (!isPasswordMatch) {
-            res.status(401).json("Wrong Password");
+            res.status(401).json({message : "Wrong password"});
             return;
         }
         
@@ -95,7 +95,7 @@ const login = async (req, res) => {
 
 
     } catch (error) {
-        res.status(500).json(error);
+        res.status(500).json({message : error});
     }
 }
 
@@ -161,7 +161,7 @@ const forgotPassword = async (req, res) => {
         const existedUser = await userService.getUserByEmail(email);
 
         if (!existedUser) {
-            res.status(404).json("Email does't exist");
+            res.status(404).json({message :"Email does't exist"});
             return;
         }
 
@@ -191,10 +191,10 @@ const forgotPassword = async (req, res) => {
         // Below line has to be fixed and uncommented
         //await nodemail.sendMail(mailDetails)
         
-        res.json({link})
+        res.json({message : link})
     } catch (error) {
         console.log(error)
-        res.status(500).json(error);
+        res.status(500).json({message : error});
     }
 
 }
@@ -202,7 +202,13 @@ const forgotPassword = async (req, res) => {
 // Function to resett password
 const resetPassword = async (req, res) => {
     try {
-        const { id, token } = req.params;
+        const { id} = req.params;
+        const authHeader = request.headers.access_token; 
+    
+        if (authHeader) {
+            const token = authHeader.split(" ")[1];
+        }
+
         const {newPassword, confirmNewPassword} = req.body;
 
         const existedUser = await userService.getUserById(id);
@@ -214,7 +220,7 @@ const resetPassword = async (req, res) => {
             async (err, user) => {
                 if (err) {
                     console.log(user)
-                    return res.status(401).json({ error: "Token is not valid!" });
+                    return res.status(401).json({ message: "Token is not valid!" });
                 }
                 if(user){
                     idFromToken = new mongoose.Types.ObjectId(user._id) ;
@@ -222,12 +228,12 @@ const resetPassword = async (req, res) => {
             } );
 
         if(!idFromToken || !idFromToken.equals(existedUser._id)){
-            return res.status(401).json({ error: "Token is not valid!" });
+            return res.status(401).json({ message: "Token is not valid!" });
         }
 
         //if token and userId verified
         if(newPassword !== confirmNewPassword){
-            return res.status(406).json("Password does't match");
+            return res.status(406).json({message:"Password does't match"});
         }
 
         //generating password hash and updating in database
@@ -235,10 +241,10 @@ const resetPassword = async (req, res) => {
         const updatedUser = await userService.updateUser({_id : existedUser._id}, {$set : {password : hashedPassword}}, {new : true});
 
         if(!updatedUser){
-            return res.status(500).json("Unexpected error occured");
+            return res.status(500).json({message :"Unexpected error occured"});
         }
 
-        return res.status(201).json("Password updated successfully..");
+        return res.status(201).json({message :"Password updated successfully.."});
 
     }
     catch (error) {
